@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@lrnwebcomponents/accent-card": "^4.0.6"
+  }
+}
