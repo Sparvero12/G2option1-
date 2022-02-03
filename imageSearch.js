@@ -1,5 +1,5 @@
 // dependencies / things imported
-import '@lrnwebcomponents/accent-card';
+import '@lrnwebcomponents/accent-card/accent-card.js';
 import { LitElement, html, css } from 'lit';
 
 export class NasaImageSearch extends LitElement {
@@ -9,6 +9,7 @@ export class NasaImageSearch extends LitElement {
 
 
   constructor() {
+    this.imageData = [];
     super();
 
   }
@@ -28,49 +29,56 @@ export class NasaImageSearch extends LitElement {
       // see if the current property that we know changed, is called ip
       // also see if it has ANY value. We benefit from JS being lazy typed here because null
       // (our default value) will fail this test but ANY VALUE will pass it
-      if (propName === 'ip' && this[propName]) {
-        // JS is driven heavily by user events like click, hover, focus, keydown, etc
-        // but you can also generate any custom event you want at any time of any name!
-        // in this case, when the value of ip changes, I'm going to emit a "ip-changed" event
-        // this way of other parts of the application want to know that ip changed in this element
-        // then it can react to it accordingly
-        const evt = new CustomEvent('ip-changed', {
-          // send the event up in the HTML document
-          bubbles: true,
-          // move up out of custom tags (that have a shadowRoot) and regular HTML tags
-          composed: true,
-          // other developers / code is allowed to tell this event to STOP going up in the DOM
-          cancelable: true,
-          // the payload of data to fire internal to the document
-          // this structure can be whatever you want in detail, a lot of times
-          // I either make detail : this
-          // or detail.value = whatever the important value is to send
+      if (propName === 'data' && this[propName]) {
 
-          detail: {
-            value: this.ip,
-          },
-        });
-        // this actually fires the event up from this tag in the page based on criteria above
         this.dispatchEvent(evt);
       }
     });
   }
 
-  // Lit life-cycle; this fires the 1st time the element is rendered on the screen
-  // this is a sign it is safe to make calls to this.shadowRoot
-  firstUpdated(changedProperties) {
-    // "super" is a reserved word so that objects made before us can run THEIR version of this method
-    // for example, if LitElement had a firstUpdated on it's class, we are extending from LitElement
-    // at the top of this class so it's important we run LitElement's code... THEN ours here
-    if (super.firstUpdated) {
-      super.firstUpdated(changedProperties);
-    }
-    // go get an IP address based on the user generating a request
-    // to this cool, simple, annonymous IP returnings service
-    // sanity check that this wasn't set previously
-    // if (this.ip === null) {
-    //   this.updateUserIP();
-    // }
+  getData() {
+    const file = new URL('./response.json', import.meta.url).href;
+
+    fetch(file)
+      .then(response =>
+
+        response.json()
+      )
+      .then(data => {
+        this.imageData = [];
+
+        for (let i = 0; i < data.length; i++) {
+
+          const eventInfo = {
+            name: data[i].details,
+            location: data[i].location,
+            start: data[i].start_time,
+            end: data[i].end_time,
+            order: data[i].order,
+          };
+          // brute force; just pull what looks like a date off the front for 01-31-22 format
+          const startDate = new Date(eventInfo.start.split('T')[0]);
+          // I googled "javascript ow to convert date string into..." and skipped around
+          // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/DateTimeFormat
+          eventInfo.month = new Intl.DateTimeFormat(document.lang, {
+            month: 'short',
+          }).format(startDate);
+          eventInfo.day = new Intl.DateTimeFormat(document.lang, {
+            weekday: 'short',
+          }).format(startDate);
+          eventInfo.date = startDate.getDate();
+          // this is very lazy and very brute force
+          eventInfo.start = eventInfo.start.split('T')[1].replace('-5:00', '');
+          eventInfo.end = eventInfo.end.split('T')[1].replace('-5:00', '');
+          // so you can see object printed to console
+          console.log(eventInfo);
+          this.dates.push(eventInfo);
+        }
+        // tell the browser to wait for 1 second before setting this back to what it was
+        setTimeout(() => {
+          this.loadData = false;
+        }, 1000);
+      });
   }
 
   /**
